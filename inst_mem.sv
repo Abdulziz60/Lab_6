@@ -11,7 +11,7 @@ module inst_mem #(
     logic [WIDTH - 1 :0] memory [ 0 : DEPTH - 1];
     
     initial begin 
-        $readmemh("home/it/machine.hex",memory);
+        $readmemh("/home/it/Computer_Architecture/cx-204/Lab_1/CX-204-Lab1/support_files/fib_im.mem",memory);
     end 
     
     assign instruction = memory[address[WIDTH - 1 :0]];
