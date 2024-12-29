@@ -1,26 +1,24 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 12/25/2024 10:37:16 AM
-// Design Name: 
-// Module Name: rv32i_top_tb
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+module rv32i_top_tb;
 
-
-module rv32i_top_tb(
-
-    );
+        parameter n = 32, depth = 1024;
+                
+        logic clk;
+        logic reset_n;
+        
+        rv32i_top #( n , depth )
+                cpu (
+                    .clk(clk),
+                    .reset_n(reset_n)      
+                );
+                
+        initial begin
+            clk = 0;
+            reset_n = 0;
+            #2 reset_n =1;
+            #100 $finish;
+        end
+         always #5 clk = ~clk;
+        
+        
 endmodule

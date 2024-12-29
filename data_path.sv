@@ -1,102 +1,88 @@
-`timescale 1ns / 1ps
+module data_path#(parameter n = 32, depth = 1024)
+                (
+                    input logic clk,
+                    input logic reset_n,
+                    input logic branch,
+                    input logic ALUsrc,
+                    input logic memToReg,
+                    input logic mem_write,
+                    input logic reg_write,
+                    input logic [3:0] alu_ctrl,
+                    output logic [n-1:0] inst 
+                );
 
-module data_path(
-    input logic clk, reset_n 
-    );
+
+    logic [n-1:0] data_o;
+    logic [$clog2(depth)-1:0] addr;
+    logic [n-1:0] rdata;
+    logic [n-1:0] imm;
+    logic [$clog2(n)-1:0] raddr1; 
+    logic [$clog2(n)-1:0] raddr2; 
+    logic [$clog2(n)-1:0] waddr;
+    logic [n-1:0] rdata1;
+    logic [n-1:0] rdata2;
+    logic [n-1:0] alu_result;
+    logic [n-1:0] mux_output1;
+    logic [n-1:0] mux_output2;
+    logic [n-1:0] mux_output3;   
+    logic PCsrc;            
+    logic zero;
     
-    logic [31:0] next_pc;
-    logic [31:0] data_out;
-    logic [31:0] inst;
-    logic [4:0]reg_raddr1;
-    logic [4:0]reg_raddr2;
-    logic [31:0] alu_result;
-    logic [3 :0]alu_ctrl;
-    logic Zero;
-    logic [31:0]reg_wdata;
-    logic reg_wirte;
-    logic [4:0]rs1;
-    logic [4:0]rs2;
-    logic [4:0]rd;
-    logic [31:0]imm;
-    logic [31:0]mem_rdata;
-    logic memtoreg;
-    logic [31:0]reg_rdadt1;
-    logic [31:0]reg_rdadt2;
-    logic [31:0]current_pc;
-    logic pc_sel;
-    logic branch;
-    logic [31:0]alu_op2;
-    logic alu_src;
-    logic mem_write;
     
-    //ALU1 from PC
-    logic pc_plus_4 ; 
-    logic pc_jump;
-    //ALU1 from PC
-    assign pc_plus_4 = data_out + 4 ;
-    assign pc_jump = current_pc + imm;
+    assign PCsrc = zero & branch;
+    assign raddr1 = inst[19:15];
+    assign raddr2 = inst[24:20];
+    assign waddr = inst[11:7];
+    assign mux_output1 = (ALUsrc)? imm: rdata2;
+    assign mux_output2 = (memToReg)? rdata: alu_result;
+    assign mux_output3 = (PCsrc)? data_o + imm: data_o + 4;
+
     
-    assign reg_wdata = (memtoreg) ? mem_rdata : alu_result ;
-    assign pc_sel = branch & Zero;
-    assign next_pc = (pc_sel) ? pc_jump : pc_plus_4 ;
-    assign alu_op2 = (alu_src)? imm : reg_rdadt2;
-    
-    assign rs1 = inst[19:15];
-    assign rs2 = inst[24:20];
-    assign rd  = inst[11:7]; 
-    
-    program_counter #( .PROG_VALUE (32) ) pc_inst (
+    inst_mem # (n) rom(
+                 .address(data_o),
+                 .instruction(inst)
+                );
+                
+    data_mem #(n) d(
     .clk(clk),
     .reset_n(reset_n),
-    .data_in(next_pc),
-    .data_out(current_pc) 
-    
-    );
-    
-     
-    
-    inst_mem #( .WIDTH (32), .DEPTH (256) ) inst_mem_inst (
-    .clk(clk),
-    .address(current_pc), 
-    .instruction(inst)    
-    );
-    
-    reg_file reg_file_inst (
-    .clk(clk), 
-    .reset_n(reset_n), 
-    .reg_write(reg_wirte),
-    .raddr1(rs1), 
-    .raddr2(rs2), 
-    .waddr(rd),
-    .wdata(reg_wdata), 
-    .rdata1(reg_rdadt1), 
-    .rdata2(reg_rdadt2)
-    );
-    
-    imm_gen imm_gen_inst (
-    .inst(inst),
-    .imm(imm)
-    );
-    
-    alu #( .ALU_WIDTH (32) ) alu_inst (
-    .op1(reg_raddr1), 
-    .op2(alu_op2),
-    .alu_ctrl(alu_ctrl), //selcter 
-    .alu_result(alu_result),
-    .Zero(Zero)
-    );
-    
-    
-    
-    data_mem #( .DATA_MEM_WIDTH (32) ) data_mem_inst (
-    .clk(clk), 
-    .reset_n(reset_n), 
     .mem_write(mem_write),
-    .addr(alu_result), 
-    .wdata(reg_rdadt2), 
-    .rdata(mem_rdata)
-    
+    .addr(alu_result),
+    .wdata(rdata2),
+    .rdata(rdata)
+    );
+
+    imm_gen #(n) i(
+     .inst(inst),
+     .imm(imm)
+    );
+
+    reg_file #(n) f(
+    .clk(clk),
+    .reset_n(reset_n),
+    .reg_write(reg_write),
+    .raddr1(raddr1),
+    .raddr2(raddr2),
+    .waddr(waddr),
+    .wdata(mux_output2),
+    .rdata1(rdata1),
+    .rdata2(rdata2)
+    );
+
+    alu #(n) u(
+    .op1(rdata1),
+    .op2(mux_output1),
+    .alu_ctrl(alu_ctrl),
+    .alu_result(alu_result),
+    .zero(zero)
+    );
+
+    program_counter #(n) p(
+    .clk(clk),
+    .reset_n(reset_n),
+    .data_in(mux_output3),
+    .data_o(data_o)
     );
     
-    
+
 endmodule
